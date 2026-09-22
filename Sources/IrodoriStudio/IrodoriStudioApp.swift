@@ -15,6 +15,7 @@ struct IrodoriStudioApp: App {
                 .environment(player)
                 .frame(minWidth: 1000, minHeight: 640)
                 .task {
+                    appDelegate.model = model
                     model.selection = Self.launchScreen(model) ?? model.selection
                     await model.start()
                 }
@@ -50,6 +51,9 @@ struct IrodoriStudioApp: App {
 
 /// `swift run` で素の実行ファイルとして起動しても、Dock に出て前面に来るようにする
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// 終了時の保存フラッシュ用（IrodoriStudioApp の .task で渡される）
+    var model: AppModel?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
@@ -57,6 +61,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        model?.flushPendingSave()
+    }
 }
 
 struct SettingsView: View {

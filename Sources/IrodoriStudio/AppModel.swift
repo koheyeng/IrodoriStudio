@@ -30,7 +30,8 @@ struct VoiceDesignDraft {
 final class AppModel {
     var selection: SidebarItem? = .voiceDesign
     private(set) var engineState: EngineState
-    private(set) var ttsModel: TTSModel = .small
+    /// 使うモデル。設定で切り替えると次回の起動でも同じものを使う
+    private(set) var ttsModel: TTSModel = AppModel.storedModel
 
     var design = VoiceDesignDraft()
     var references: [VoiceReference]
@@ -42,14 +43,31 @@ final class AppModel {
     private var jobs: [JobTarget] = []
     private var runner: Task<Void, Never>?
 
-    init(synthesizer: any SpeechSynthesizer, references: [VoiceReference], projects: [Project], clips: [GeneratedClip]) {
+    /// 保存先。nil ならモック（保存しない）
+    private let libraryURL: URL?
+    private var pendingSave: Task<Void, Never>?
+
+    init(
+        synthesizer: any SpeechSynthesizer,
+        references: [VoiceReference],
+        projects: [Project],
+        clips: [GeneratedClip],
+        design: VoiceDesignDraft = VoiceDesignDraft(),
+        libraryURL: URL? = nil
+    ) {
         self.synthesizer = synthesizer
         self.references = references
         self.projects = projects
         self.clips = clips
-        self.engineState = .loading(.small)
+        self.design = design
+        self.engineState = .loading(AppModel.storedModel)
+        self.libraryURL = libraryURL
+        if libraryURL != nil {
+            observeForAutosave()
+        }
     }
 
+    /// スクショ・デザイン確認用。保存は一切しない（毎回同じサンプルデータ）
     static func makeMock() -> AppModel {
         let sample = SampleData.make(dummyAudio: AppPaths.dummyAudio)
         return AppModel(
@@ -60,20 +78,32 @@ final class AppModel {
         )
     }
 
-    /// 本物のエンジン（Python の常駐ワーカー）に繋ぐ既定の起動方法
+    /// 本物のエンジン（Python の常駐ワーカー）に繋ぐ既定の起動方法。前回保存した内容があればそれを読み込む
     static func makeLive() -> AppModel {
-        let sample = SampleData.make(dummyAudio: AppPaths.dummyAudio)
         let synthesizer = PythonSpeechSynthesizer(
             pythonPath: AppPaths.enginePython,
             workerScriptPath: AppPaths.workerScript,
             outputDirectory: AppPaths.outputs,
             engineRepoPath: AppPaths.engineRepo
         )
+        let libraryURL = AppPaths.library
+        if let saved = LibraryStore.load(from: libraryURL) {
+            return AppModel(
+                synthesizer: synthesizer,
+                references: saved.references,
+                projects: saved.projects,
+                clips: saved.clips,
+                design: saved.design,
+                libraryURL: libraryURL
+            )
+        }
+        let sample = SampleData.make(dummyAudio: AppPaths.dummyAudio)
         return AppModel(
             synthesizer: synthesizer,
             references: sample.references,
             projects: sample.projects,
-            clips: sample.clips
+            clips: sample.clips,
+            libraryURL: libraryURL
         )
     }
 
@@ -86,6 +116,7 @@ final class AppModel {
     func switchModel(_ model: TTSModel) {
         guard model != ttsModel else { return }
         ttsModel = model
+        UserDefaults.standard.set(model.rawValue, forKey: Self.ttsModelKey)
         Task { await load(model) }
     }
 
@@ -343,6 +374,53 @@ final class AppModel {
     private func isFailed(_ status: LineStatus) -> Bool {
         if case .failed = status { return true }
         return false
+    }
+
+    // MARK: - 自動保存
+
+    /// references / projects / clips / design の変更を見張る（1回きりなので、発火のたびに登録し直す）
+    private func observeForAutosave() {
+        withObservationTracking {
+            _ = references
+            _ = projects
+            _ = clips
+            _ = design
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.scheduleAutosave()
+            }
+        }
+    }
+
+    /// 変更をまとめて0.5秒後に1回だけ保存する（デバウンス）
+    private func scheduleAutosave() {
+        observeForAutosave()
+        pendingSave?.cancel()
+        pendingSave = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self?.persist()
+        }
+    }
+
+    private func persist() {
+        guard let libraryURL else { return }
+        let content = LibraryStore.Content(references: references, projects: projects, clips: clips, design: design)
+        try? LibraryStore.save(content, to: libraryURL)
+    }
+
+    /// アプリ終了時に呼ぶ。保留中の保存があれば今すぐ同期的に書き出す
+    func flushPendingSave() {
+        pendingSave?.cancel()
+        pendingSave = nil
+        persist()
+    }
+
+    private static let ttsModelKey = "ttsModel"
+
+    /// 前回選んだモデル（無ければ本家）
+    private static var storedModel: TTSModel {
+        UserDefaults.standard.string(forKey: ttsModelKey).flatMap(TTSModel.init(rawValue:)) ?? .small
     }
 
     /// キューに積むのは「何を焼くか」だけ

@@ -45,7 +45,7 @@ private struct ScriptContentView: View {
         }
         .sheet(isPresented: characterSheetPresented) {
             if let editingCharacterID, let index = project.characters.firstIndex(where: { $0.id == editingCharacterID }) {
-                CharacterEditSheet(character: $project.characters[index])
+                CharacterEditSheet(character: characterBinding(index))
             }
         }
     }
@@ -104,6 +104,22 @@ private struct ScriptContentView: View {
         let character = CastMember(name: "キャラ\(project.characters.count + 1)", colorIndex: project.characters.count, voice: VoiceProfile())
         project.characters.append(character)
         editingCharacterID = character.id
+    }
+
+    /// キャラの声（キャプション・seed・見本の固定）を変えたら、そのキャラの生成済みの行は焼き直しが要る
+    private func characterBinding(_ index: Int) -> Binding<CastMember> {
+        Binding(
+            get: { project.characters[index] },
+            set: { updated in
+                let previous = project.characters[index]
+                project.characters[index] = updated
+                guard previous.voice != updated.voice else { return }
+                for line in project.lines.indices
+                where project.lines[line].characterID == updated.id && project.lines[line].status == .generated {
+                    project.lines[line].status = .notGenerated
+                }
+            }
+        )
     }
 
     private func removeCharacter(_ id: CastMember.ID) {

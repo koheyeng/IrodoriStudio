@@ -161,7 +161,7 @@ class Worker:
         res = result["res"]
         gen_sec = result["elapsed"]
 
-        # HANDOFF記載のとおり、頭と尻の無音を詰めてから保存する
+        # 頭と尻の無音を詰めてから保存する（句読点だけのセリフだと前後に1秒ほど無音が入ることがある）
         audio, sr = res.audio.reshape(-1), res.sample_rate
         iv = librosa.effects.split(audio.float().cpu().numpy(), top_db=40)
         if len(iv) > 0:

@@ -5,7 +5,7 @@ import SwiftUI
 @main
 struct IrodoriStudioApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var model = AppModel.makeMock()
+    @State private var model = Self.makeModel()
     @State private var player = AudioPlayer()
 
     var body: some Scene {
@@ -25,6 +25,11 @@ struct IrodoriStudioApp: App {
             SettingsView()
                 .environment(model)
         }
+    }
+
+    /// `-mock` を付けて起動するとモック（デザイン確認・スクショ用）、それ以外は本物の Python ワーカーに繋ぐ
+    private static func makeModel() -> AppModel {
+        CommandLine.arguments.contains("-mock") ? .makeMock() : .makeLive()
     }
 
     /// 起動時に開く画面（スクショ確認用）。`open IrodoriStudio.app --args -screen project2` のように渡す（newProject は空の台本を作って開く）
@@ -56,6 +61,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @AppStorage("engineRepoPath") private var engineRepoPath = ""
+    @AppStorage("enginePythonPath") private var enginePythonPath = ""
 
     var body: some View {
         Form {
@@ -65,6 +72,14 @@ struct SettingsView: View {
             Text("切り替えるとモデルを読み込み直します（本物は約5〜40秒）")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            Section("音声合成エンジンの場所") {
+                TextField("リポジトリ", text: $engineRepoPath, prompt: Text(AppPaths.defaultEngineRepoPath))
+                TextField("Python", text: $enginePythonPath, prompt: Text("既定: 上のリポジトリの .venv/bin/python"))
+                Text("空欄なら既定の場所を使う。変更はアプリの再起動後に反映されます")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .frame(width: 420)

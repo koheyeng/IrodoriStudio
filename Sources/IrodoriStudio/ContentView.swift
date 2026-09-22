@@ -109,6 +109,13 @@ private struct EngineStatusView: View {
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 Text(message).lineLimit(2)
+                Button {
+                    model.retryEngine()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("もう一度試す")
             }
             Spacer(minLength: 0)
             SettingsLink {

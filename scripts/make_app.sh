@@ -36,6 +36,9 @@ PLIST
 # Phase 1 はモックなので、ダミー音声をバンドルに入れる
 cp -R "$ROOT/Resources/DummyAudio" "$APP/Contents/Resources/"
 
+# Phase 2: Python ワーカースクリプトもバンドルに入れる（配布時は AppPaths.workerScript がこちらを見つける）
+cp "$ROOT/python/irodori_worker.py" "$APP/Contents/Resources/"
+
 # 署名なしだと Gatekeeper に弾かれるので ad-hoc 署名する。
 codesign --force --sign - "$APP" || echo "警告: ad-hoc 署名に失敗しました"
 

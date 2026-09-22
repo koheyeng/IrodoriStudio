@@ -60,6 +60,23 @@ final class AppModel {
         )
     }
 
+    /// 本物のエンジン（Python の常駐ワーカー）に繋ぐ既定の起動方法
+    static func makeLive() -> AppModel {
+        let sample = SampleData.make(dummyAudio: AppPaths.dummyAudio)
+        let synthesizer = PythonSpeechSynthesizer(
+            pythonPath: AppPaths.enginePython,
+            workerScriptPath: AppPaths.workerScript,
+            outputDirectory: AppPaths.outputs,
+            engineRepoPath: AppPaths.engineRepo
+        )
+        return AppModel(
+            synthesizer: synthesizer,
+            references: sample.references,
+            projects: sample.projects,
+            clips: sample.clips
+        )
+    }
+
     // MARK: - エンジン
 
     func start() async {
@@ -70,6 +87,11 @@ final class AppModel {
         guard model != ttsModel else { return }
         ttsModel = model
         Task { await load(model) }
+    }
+
+    /// 読み込みに失敗したときに、同じモデルでもう一度試す
+    func retryEngine() {
+        Task { await load(ttsModel) }
     }
 
     private func load(_ model: TTSModel) async {

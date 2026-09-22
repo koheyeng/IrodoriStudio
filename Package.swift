@@ -24,5 +24,10 @@ let package = Package(
             dependencies: ["IrodoriKit"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .testTarget(
+            name: "IrodoriStudioTests",
+            dependencies: ["IrodoriStudio"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
     ]
 )

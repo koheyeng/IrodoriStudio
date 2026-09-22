@@ -20,6 +20,12 @@ enum AppPaths {
             .appendingPathComponent("IrodoriStudio/Outputs")
     }
 
+    /// 見本・台本・完成音声一覧・声づくりの下書きの保存先
+    static var library: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("IrodoriStudio/library.json")
+    }
+
     /// 設定画面のプレースホルダ用（表示だけ。実際の既定値は `engineRepo` 参照）
     static let defaultEngineRepoPath = "~/dev/github/Irodori-TTS"
 

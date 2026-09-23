@@ -27,22 +27,27 @@ private struct ScriptContentView: View {
     @State private var insertion = TextInsertionProxy()
 
     var body: some View {
-        VStack(spacing: 0) {
-            headerView
-            castStrip
-            Divider()
-            if project.characters.isEmpty && project.lines.isEmpty {
-                emptyState
-            } else {
-                lineList
+        // 右パネルは標準の .inspector を使わない。ツールバーの下まで伸びる .inspector は、描画だけが
+        // ツールバーの高さぶん下にずれて当たり判定とかみ合わなくなる（カーソルの少し下の項目が反応する）ため
+        HSplitView {
+            VStack(spacing: 0) {
+                headerView
+                castStrip
+                Divider()
+                if project.characters.isEmpty && project.lines.isEmpty {
+                    emptyState
+                } else {
+                    lineList
+                }
+            }
+            .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
+            if showInspector {
+                inspectorContent
+                    .frame(minWidth: 320, idealWidth: 380, maxWidth: 520, maxHeight: .infinity)
             }
         }
         .navigationTitle(project.name)
         .toolbar { toolbarContent }
-        .inspector(isPresented: $showInspector) {
-            inspectorContent
-                .inspectorColumnWidth(min: 320, ideal: 380, max: 520)
-        }
         .sheet(isPresented: characterSheetPresented) {
             if let editingCharacterID, let index = project.characters.firstIndex(where: { $0.id == editingCharacterID }) {
                 CharacterEditSheet(character: characterBinding(index))

@@ -77,7 +77,7 @@ struct SettingsView: View {
             Picker("モデル", selection: Binding(get: { model.ttsModel }, set: { model.switchModel($0) })) {
                 ForEach(TTSModel.allCases) { Text($0.label).tag($0) }
             }
-            Text("切り替えるとモデルを読み込み直します（本物は約5〜40秒）")
+            Text("切り替えるとモデルを読み込み直します（Small・Anime版は約15秒、Large は約1分。Large は1本あたり再生時間の2倍ほどかかり、GPUメモリを約19GB使います）")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

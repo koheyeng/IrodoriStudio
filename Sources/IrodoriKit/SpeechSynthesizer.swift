@@ -5,6 +5,8 @@ import Foundation
 public enum TTSModel: String, CaseIterable, Codable, Sendable, Identifiable {
     case small
     case anime
+    /// 約33億パラメータ。読み込み約1分・1本あたり再生時間の2倍ほど・GPUメモリ約19GB
+    case large
 
     public var id: String { rawValue }
 
@@ -12,6 +14,7 @@ public enum TTSModel: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .small: return "本家 v4.1-Small"
         case .anime: return "Anime版 v4.1-Anime"
+        case .large: return "Large v4（高品質・重い）"
         }
     }
 
@@ -19,6 +22,7 @@ public enum TTSModel: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .small: return "Aratako/Irodori-TTS-v4.1-Small"
         case .anime: return "phasefield-audio/Irodori-TTS-v4.1-Anime"
+        case .large: return "Aratako/Irodori-TTS-v4-Large"
         }
     }
 }

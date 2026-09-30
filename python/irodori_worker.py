@@ -6,6 +6,7 @@ Swift側と標準入出力でJSONプロトコル(PROTOCOL.md)をやり取りす�
 """
 from __future__ import annotations
 
+import gc
 import json
 import os
 import platform
@@ -38,6 +39,7 @@ _REPO = Path(os.environ.get("IRODORI_TTS_REPO", "~/dev/github/Irodori-TTS")).exp
 sys.path.insert(0, str(_REPO))
 
 import librosa  # noqa: E402
+import torch  # noqa: E402
 
 from irodori_tts.inference_runtime import (  # noqa: E402
     InferenceRuntime,
@@ -71,6 +73,14 @@ class Worker:
         if self.runtime is not None and self.checkpoint == checkpoint:
             _emit({"id": req_id, "event": "done", "checkpoint": checkpoint, "load_sec": 0.0})
             return
+
+        # 前のモデルを先に捨てる。新旧が同時に載ると Small(約7.5GB)+Large(約19GB) でメモリが溢れる
+        if self.runtime is not None:
+            self.runtime = None
+            self.checkpoint = None
+            gc.collect()
+            torch.mps.empty_cache()
+        self.gen_times.clear()  # 進捗の見込み時間はモデルごとに測り直す
 
         t0 = time.perf_counter()
         ckpt_path = download_hf_checkpoint(checkpoint)
